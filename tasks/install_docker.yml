@@ -1,0 +1,98 @@
+---
+# Install Docker CE from the official Docker repositories
+# Supported OS families: Debian, RedHat
+
+# -------------------- Debian / Ubuntu --------------------
+
+- name: Debian Family Block
+  when: ansible_os_family == "Debian"
+  block:
+
+    - name: Ensure required packages for repo management are installed (Debian)
+      ansible.builtin.apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+        state: present
+        update_cache: true
+
+    - name: Ensure keyrings directory exists
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: Download Docker GPG key (ASCII-armored)
+      ansible.builtin.get_url:
+        url: https://download.docker.com/linux/debian/gpg
+        dest: /etc/apt/keyrings/docker.asc
+        mode: '0644'
+
+    - name: Convert Docker key to GPG binary format
+      ansible.builtin.command:
+        cmd: gpg --dearmor -o /etc/apt/keyrings/docker.gpg /etc/apt/keyrings/docker.asc
+        creates: /etc/apt/keyrings/docker.gpg
+
+    - name: Add Docker repository (Debian)
+      ansible.builtin.apt_repository:
+        repo: >-
+          deb [arch={{ containerlab_arch }}
+            signed-by=/etc/apt/keyrings/docker.gpg]
+            https://download.docker.com/linux/debian {{ ansible_lsb.codename }} stable
+        state: present
+        filename: docker
+
+    - name: Install Docker CE (Debian)
+      ansible.builtin.apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+          - python3-docker
+        state: present
+        update_cache: true
+
+# -------------------- RedHat / Rocky / CentOS --------------------
+
+- name: RedHat Family Block
+  when: ansible_os_family == "RedHat"
+  block:
+    - name: Ensure required packages for repo management are installed (RedHat)
+      ansible.builtin.dnf:
+        name:
+          - yum-utils
+          - device-mapper-persistent-data
+          - lvm2
+        state: present
+
+    - name: Add Docker CE repository (RedHat)
+      ansible.builtin.command: >
+        yum-config-manager --add-repo
+        https://download.docker.com/linux/{{ ansible_distribution | lower }}/docker-ce.repo
+      args:
+        creates: /etc/yum.repos.d/docker-ce.repo
+
+    - name: Install Docker CE (RedHat)
+      ansible.builtin.dnf:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+          - python3-docker
+        state: present
+        update_cache: true
+
+- name: Add users to docker group
+  ansible.builtin.user:
+    name: "{{ item }}"
+    groups: docker
+    append: true
+  loop: "{{ containerlab_docker_users }}"
+  when: containerlab_docker_users | length > 0

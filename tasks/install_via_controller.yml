@@ -1,0 +1,112 @@
+---
+# Download containerlab on controller and copy to host, then install
+
+- name: Determine package extension based on OS family
+  ansible.builtin.set_fact:
+    containerlab_pkg_ext: >-
+      {{ 'deb' if ansible_os_family == 'Debian' else 'rpm' }}
+
+- name: Strip 'v' prefix from version
+  ansible.builtin.set_fact:
+    containerlab_effective_version_stripped: >-
+      {{ containerlab_effective_version | regex_replace('^v', '') }}
+
+- name: Build package filename
+  ansible.builtin.set_fact:
+    containerlab_pkg_file: >-
+      {{ "containerlab_" ~ containerlab_effective_version_stripped
+      ~ "_linux_" ~ containerlab_arch
+      ~ "." ~ containerlab_pkg_ext }}
+
+- name: Debug package filename
+  ansible.builtin.debug:
+    msg: "{{ containerlab_pkg_file }}"
+    verbosity: 0
+
+- name: Build download URL for package
+  ansible.builtin.set_fact:
+    containerlab_pkg_url: >-
+      {{ 'https://github.com/' ~ containerlab_github_owner ~ '/'
+        ~ containerlab_github_repo ~ '/releases/download/'
+        ~ containerlab_effective_version ~ '/'
+        ~ 'containerlab_' ~ containerlab_effective_version_stripped
+        ~ '_linux_' ~ containerlab_arch ~ '.' ~ containerlab_pkg_ext }}
+
+- name: Debug download URL
+  ansible.builtin.debug:
+    msg: "{{ containerlab_pkg_url }}"
+    verbosity: 0
+
+- name: Check installed containerlab version
+  ansible.builtin.command: >-
+    {{ 'dpkg-query -W -f=${Version} containerlab'
+       if ansible_os_family == 'Debian'
+       else 'rpm -q --qf %{VERSION} containerlab' }}
+  register: _clab_installed_ver
+  failed_when: false
+  changed_when: false
+  check_mode: false
+
+- name: Debug installed containerlab version
+  ansible.builtin.debug:
+    var: _clab_installed_ver
+    verbosity: 1
+
+- name: Decide whether installation/upgrade is needed
+  ansible.builtin.set_fact:
+    _clab_needs_install: >-
+      {{ _clab_installed_ver.rc != 0
+         or (_clab_installed_ver.stdout | trim)
+            != containerlab_effective_version_stripped }}
+
+- name: Installation block
+  when:
+    - _clab_needs_install | bool
+  block:
+    - name: Download containerlab release on controller
+      delegate_to: localhost
+      run_once: true
+      ansible.builtin.get_url:
+        url: "{{ containerlab_pkg_url }}"
+        dest: "/tmp/{{ containerlab_pkg_file }}"
+        mode: '0644'
+      environment: "{{ containerlab_proxy_env_controller }}"
+      become: "{{ containerlab_controller_become }}"
+
+    - name: Copy package from controller to host
+      ansible.builtin.copy:
+        src: "/tmp/{{ containerlab_pkg_file }}"
+        dest: "/tmp/{{ containerlab_pkg_file }}"
+        mode: '0644'
+
+    - name: Install or upgrade containerlab (Debian)
+      when:
+        - ansible_os_family == "Debian"
+      ansible.builtin.apt:
+        deb: "/tmp/{{ containerlab_pkg_file }}"
+        state: present
+
+    - name: Install or upgrade containerlab (RedHat)
+      when:
+        - ansible_os_family == "RedHat"
+      ansible.builtin.dnf:
+        name: "/tmp/{{ containerlab_pkg_file }}"
+        state: present
+
+# --- Clean up temporary files ---
+
+- name: Cleanup Block
+  when: containerlab_cleanup | bool
+  block:
+    - name: Remove package file from host
+      ansible.builtin.file:
+        path: "/tmp/{{ containerlab_pkg_file }}"
+        state: absent
+
+    - name: Remove package file from controller
+      ansible.builtin.file:
+        path: "/tmp/{{ containerlab_pkg_file }}"
+        state: absent
+      delegate_to: localhost
+      run_once: true
+      become: "{{ containerlab_controller_become }}"

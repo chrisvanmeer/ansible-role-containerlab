@@ -1,0 +1,27 @@
+---
+galaxy_info:
+  role_name: containerlab
+  author: Chris van Meer
+  company: AT Computing
+  namespace: chrisvanmeer
+  description: Installs containerlab from GitHub releases, optionally with Docker. Supports Debian and RedHat families.
+  license: MIT
+  min_ansible_version: "2.13"
+  platforms:
+    - name: Debian
+      versions:
+        - bookworm
+        - trixie
+    - name: EL
+      versions:
+        - "9"
+        - "10"
+
+  galaxy_tags:
+    - networking
+    - containers
+    - containerlab
+    - docker
+    - lab
+
+dependencies: []

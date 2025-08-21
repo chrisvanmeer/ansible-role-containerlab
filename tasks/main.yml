@@ -1,0 +1,37 @@
+---
+# Main tasks for containerlab installation
+
+# 1. Determine target architecture
+- name: Determine target architecture
+  ansible.builtin.set_fact:
+    containerlab_arch: "{{ containerlab_arch_map.get(ansible_architecture, 'amd64') }}"
+
+# 2. Resolve desired containerlab version (handle 'latest' via GitHub API)
+- name: Resolve desired containerlab version
+  ansible.builtin.include_tasks: resolve_version.yml
+
+# 3. Optionally install Docker
+- name: Install Docker if requested
+  ansible.builtin.include_tasks: install_docker.yml
+  when: containerlab_install_docker | bool
+
+# 4. Install containerlab via chosen method
+- name: Install containerlab via URL method
+  ansible.builtin.include_tasks: install_via_url.yml
+  when: containerlab_install_method == "url"
+
+- name: Install containerlab via controller copy method
+  ansible.builtin.include_tasks: install_via_controller.yml
+  when: containerlab_install_method == "controller_copy"
+
+# 5. Optionally apply SELinux fix for containerlab
+- name: Enable sudo-less operation for containerlab (RedHat family only)
+  ansible.builtin.include_tasks: selinux.yml
+  when:
+    - ansible_os_family == "RedHat"
+    - containerlab_selinux_fix | bool
+
+# 6. Optionally enable sudo-less operation
+- name: Enable sudo-less operation for containerlab
+  ansible.builtin.include_tasks: sudo_less.yml
+  when: containerlab_enable_sudo_less | bool

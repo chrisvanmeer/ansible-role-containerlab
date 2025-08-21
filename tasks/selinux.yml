@@ -1,0 +1,40 @@
+---
+# Optional SELinux configuration for containerlab binary (fix UPX segfaults)
+
+- name: Ensure semanage is installed (required for SELinux fixes)
+  ansible.builtin.dnf:
+    name:
+      - libselinux-python
+      - policycoreutils-python-utils
+    state: present
+  when:
+    - ansible_facts.selinux.status == "enabled"
+  become: true
+
+- name: Find containerlab binary
+  ansible.builtin.command:
+    cmd: which containerlab
+  register: _clab_bin
+  changed_when: false
+  failed_when: false
+
+- name: Apply SELinux fcontext to containerlab binary using sefcontext
+  community.general.sefcontext:
+    target: "{{ _clab_bin.stdout }}"
+    setype: textrel_shlib_t
+    state: present
+  become: true
+  when:
+    - ansible_facts.selinux.status == "enabled"
+    - _clab_bin.stdout | length > 0
+
+- name: Apply SELinux context change to containerlab binary
+  ansible.builtin.command:
+    cmd: restorecon "{{ _clab_bin.stdout }}"
+  register: restorecon_output
+  changed_when: "'relabeled' in restorecon_output.stdout.lower()"
+  failed_when: restorecon_output.rc != 0
+  become: true
+  when:
+    - ansible_facts.selinux.status == "enabled"
+    - _clab_bin.stdout | length > 0

@@ -1,0 +1,38 @@
+---
+# Enable sudo-less operation for containerlab by setting SUID and adding users to a group
+
+- name: Ensure sudo-less group exists
+  ansible.builtin.group:
+    name: "{{ containerlab_sudo_group }}"
+    state: present
+    system: true
+
+- name: Set list of users for sudo-less containerlab
+  ansible.builtin.set_fact:
+    _clab_sudo_users: >-
+      {{ containerlab_sudo_users
+         if containerlab_sudo_users | length > 0
+         else [ansible_user_id] }}
+
+- name: Add users to sudo-less group
+  ansible.builtin.user:
+    name: "{{ item }}"
+    groups: "{{ containerlab_sudo_group }}"
+    append: true
+  loop: "{{ _clab_sudo_users }}"
+
+- name: Find containerlab binary
+  ansible.builtin.command:
+    cmd: which containerlab
+  register: _clab_bin
+  changed_when: false
+  failed_when: false
+
+- name: Ensure containerlab binary has SUID bit
+  ansible.builtin.file:
+    path: "{{ _clab_bin.stdout }}"
+    mode: '4755'
+    owner: root
+    group: root
+  when:
+    - _clab_bin.stdout | length > 0

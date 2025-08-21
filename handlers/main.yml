@@ -1,0 +1,6 @@
+---
+# handlers file for containerlab
+
+- name: "Update apt cache after adding Docker repo"
+  ansible.builtin.apt:
+    update_cache: true

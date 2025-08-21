@@ -1,0 +1,65 @@
+---
+# defaults file for containerlab
+
+# General toggles
+containerlab_install_docker: false
+
+# List of users to add to the docker group
+containerlab_docker_users: []
+
+# Installation method:
+# - "url"            : host installs via apt from GitHub release URL
+# - "controller_copy": controller downloads .deb, copies to host, host installs
+containerlab_install_method: "url"
+
+# Version policy
+# - "latest" (default) -> resolved via GitHub API releases/latest
+# - or explicit, e.g. "v0.69.3"
+containerlab_version: "latest"
+
+# Repo/owner
+containerlab_github_owner: "srl-labs"
+containerlab_github_repo: "containerlab"
+
+# TLS validation during download
+containerlab_validate_certs: true
+
+# Proxy environments (optional)
+# For host (url) and for controller (controller_copy)
+containerlab_proxy_env_host: {}
+#  http_proxy:  "http://proxy:3128"
+#  https_proxy: "http://proxy:3128"
+#  no_proxy:    ".example.com,localhost,127.0.0.1"
+
+containerlab_proxy_env_controller: {}
+#  http_proxy:  "http://proxy:3128"
+#  https_proxy: "http://proxy:3128"
+#  no_proxy:    ".example.com,localhost,127.0.0.1"
+
+# Path on controller for downloaded .deb (controller_copy)
+containerlab_controller_download_dir: "/tmp/containerlab"
+
+# Whether to use elevated privileges (sudo) when performing tasks on localhost
+containerlab_controller_become: false
+
+# Path on target host for temporary .deb copy (controller_copy)
+containerlab_host_pkg_path: "/tmp"
+
+# Optional GitHub token to avoid rate limits
+containerlab_github_token: ""   # leave empty if not needed
+
+# Whether to cleanup temporary containerlab package files after install
+containerlab_cleanup: false
+
+# Enable sudo-less operation for containerlab
+containerlab_enable_sudo_less: false
+
+# Name of the Unix group for sudo-less containerlab
+containerlab_sudo_group: clab_admins
+
+# Users to add to the sudo-less group
+# If empty, defaults to the ansible_user_id
+containerlab_sudo_users: []
+
+# Whether to configure SELinux for containerlab to avoid upx segmentation faults
+containerlab_selinux_fix: true

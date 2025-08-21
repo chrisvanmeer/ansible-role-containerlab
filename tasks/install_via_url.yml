@@ -1,0 +1,68 @@
+---
+# Install containerlab directly from GitHub release URL
+
+- name: Determine package extension based on OS family
+  ansible.builtin.set_fact:
+    containerlab_pkg_ext: >-
+      {{ 'deb' if ansible_os_family == 'Debian' else 'rpm' }}
+
+- name: Strip 'v' prefix from version
+  ansible.builtin.set_fact:
+    containerlab_effective_version_stripped: >-
+      {{ containerlab_effective_version | regex_replace('^v', '') }}
+
+- name: Check installed containerlab version
+  ansible.builtin.command: >-
+    {{ 'dpkg-query -W -f=${Version} containerlab'
+       if ansible_os_family == 'Debian'
+       else 'rpm -q --qf %{VERSION} containerlab' }}
+  register: _clab_installed_ver
+  failed_when: false
+  changed_when: false
+  check_mode: false
+
+- name: Debug installed containerlab version
+  ansible.builtin.debug:
+    var: _clab_installed_ver
+    verbosity: 1
+
+- name: Decide whether installation/upgrade is needed
+  ansible.builtin.set_fact:
+    _clab_needs_install: >-
+      {{ _clab_installed_ver.rc != 0
+         or (_clab_installed_ver.stdout | trim)
+            != containerlab_effective_version_stripped }}
+
+- name: Installation Block
+  when:
+    - _clab_needs_install | bool
+  block:
+    - name: Build download URL for package
+      ansible.builtin.set_fact:
+        containerlab_pkg_url: >-
+          {{ 'https://github.com/' ~ containerlab_github_owner ~ '/'
+            ~ containerlab_github_repo ~ '/releases/download/'
+            ~ containerlab_effective_version ~ '/'
+            ~ 'containerlab_' ~ containerlab_effective_version_stripped
+            ~ '_linux_' ~ containerlab_arch ~ '.' ~ containerlab_pkg_ext }}
+
+    - name: Debug containerlab_pkg_url
+      ansible.builtin.debug:
+        var: containerlab_pkg_url
+        verbosity: 1
+
+    - name: Install or upgrade containerlab (Debian)
+      when:
+        - ansible_os_family == "Debian"
+      ansible.builtin.apt:
+        deb: "{{ containerlab_pkg_url }}"
+        state: present
+      environment: "{{ containerlab_proxy_env_host }}"
+
+    - name: Install or upgrade containerlab (RedHat)
+      when:
+        - ansible_os_family == "RedHat"
+      ansible.builtin.dnf:
+        name: "{{ containerlab_pkg_url }}"
+        state: present
+      environment: "{{ containerlab_proxy_env_host }}"

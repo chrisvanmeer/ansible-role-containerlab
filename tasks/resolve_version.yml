@@ -1,0 +1,51 @@
+---
+# Resolve version: if "latest", query GitHub API; otherwise use given version
+- name: Set target version to specified value
+  when: containerlab_version != 'latest'
+  ansible.builtin.set_fact:
+    containerlab_effective_version: "{{ containerlab_version }}"
+
+- name: Query latest release via GitHub API
+  ansible.builtin.uri:
+    url: "https://api.github.com/repos/{{ containerlab_github_owner }}/{{ containerlab_github_repo }}/releases/latest"
+    method: GET
+    return_content: true
+    status_code: 200
+    headers: "{{ _headers }}"
+    validate_certs: "{{ containerlab_validate_certs }}"
+  register: containerlab_latest_api
+  delegate_to: >-
+    {{
+      (containerlab_install_method == 'controller_copy')
+      | ternary('localhost', inventory_hostname)
+    }}
+  run_once: "{{ containerlab_install_method == 'controller_copy' }}"
+  environment: >-
+    {{
+      (containerlab_install_method == 'controller_copy')
+      | ternary(containerlab_proxy_env_controller, containerlab_proxy_env_host)
+    }}
+  when: containerlab_version == 'latest'
+  vars:
+    _headers: >-
+      {{
+        {'Accept': 'application/vnd.github+json'}
+        | combine(
+            (containerlab_github_token | length > 0)
+            | ternary(
+                {'Authorization': 'Bearer ' + containerlab_github_token},
+                {}
+              )
+          )
+      }}
+
+- name: Set effective version = tag_name of latest release
+  ansible.builtin.set_fact:
+    containerlab_effective_version: >-
+      {{ (containerlab_latest_api.json.tag_name | default('')) | trim }}
+  when: containerlab_version == 'latest'
+
+- name: Debug containerlab_effective_version
+  ansible.builtin.debug:
+    var: containerlab_effective_version
+    verbosity: 1
