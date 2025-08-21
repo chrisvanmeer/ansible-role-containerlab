@@ -14,8 +14,8 @@
 - name: Check installed containerlab version
   ansible.builtin.command: >-
     {{ 'dpkg-query -W -f=${Version} containerlab'
-       if ansible_os_family == 'Debian'
-       else 'rpm -q --qf %{VERSION} containerlab' }}
+      if ansible_os_family == 'Debian'
+      else 'rpm -q --qf %{VERSION} containerlab' }}
   register: _clab_installed_ver
   failed_when: false
   changed_when: false
@@ -30,8 +30,8 @@
   ansible.builtin.set_fact:
     _clab_needs_install: >-
       {{ _clab_installed_ver.rc != 0
-         or (_clab_installed_ver.stdout | trim)
-            != containerlab_effective_version_stripped }}
+        or (_clab_installed_ver.stdout | trim)
+        != containerlab_effective_version_stripped }}
 
 - name: Installation Block
   when:

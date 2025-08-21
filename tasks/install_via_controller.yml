@@ -21,7 +21,7 @@
 - name: Debug package filename
   ansible.builtin.debug:
     msg: "{{ containerlab_pkg_file }}"
-    verbosity: 0
+    verbosity: 1
 
 - name: Build download URL for package
   ansible.builtin.set_fact:
@@ -35,13 +35,13 @@
 - name: Debug download URL
   ansible.builtin.debug:
     msg: "{{ containerlab_pkg_url }}"
-    verbosity: 0
+    verbosity: 1
 
 - name: Check installed containerlab version
   ansible.builtin.command: >-
     {{ 'dpkg-query -W -f=${Version} containerlab'
-       if ansible_os_family == 'Debian'
-       else 'rpm -q --qf %{VERSION} containerlab' }}
+      if ansible_os_family == 'Debian'
+      else 'rpm -q --qf %{VERSION} containerlab' }}
   register: _clab_installed_ver
   failed_when: false
   changed_when: false
@@ -56,8 +56,8 @@
   ansible.builtin.set_fact:
     _clab_needs_install: >-
       {{ _clab_installed_ver.rc != 0
-         or (_clab_installed_ver.stdout | trim)
-            != containerlab_effective_version_stripped }}
+        or (_clab_installed_ver.stdout | trim)
+        != containerlab_effective_version_stripped }}
 
 - name: Installation block
   when:
@@ -69,7 +69,7 @@
       ansible.builtin.get_url:
         url: "{{ containerlab_pkg_url }}"
         dest: "/tmp/{{ containerlab_pkg_file }}"
-        mode: '0644'
+        mode: "0644"
       environment: "{{ containerlab_proxy_env_controller }}"
       become: "{{ containerlab_controller_become }}"
 
@@ -77,7 +77,7 @@
       ansible.builtin.copy:
         src: "/tmp/{{ containerlab_pkg_file }}"
         dest: "/tmp/{{ containerlab_pkg_file }}"
-        mode: '0644'
+        mode: "0644"
 
     - name: Install or upgrade containerlab (Debian)
       when:
