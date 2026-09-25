@@ -36,3 +36,20 @@
     group: root
   when:
     - _clab_bin.stdout | length > 0
+
+- name: Ensure ACL package
+  ansible.builtin.package:
+    name: acl
+    state: present
+
+- name: Ensure ACL's to ensure sudo-less usage
+  ansible.posix.acl:
+    path: /etc/ssh/ssh_config.d
+    entity: ""
+    etype: "{{ item.etype }}"
+    permissions: r
+    default: true
+    state: present
+  loop:
+    - { etype: "group" }
+    - { etype: "other" }
